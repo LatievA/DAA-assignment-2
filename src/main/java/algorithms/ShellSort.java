@@ -1,5 +1,7 @@
 package algorithms;
 
+import metrics.PerformanceTracker;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.function.IntFunction;
@@ -8,36 +10,44 @@ public final class ShellSort {
 
     private ShellSort() {}
 
-    /**
-     * Generic Shellsort.
-     * @param arr array to sort
-     * @param gapSequence function that generates an int[] of gaps (descending order)
-     */
-    public static <T extends Comparable<? super T>> void shellSort(T[] arr, IntFunction<int[]> gapSequence) {
+    public static <T extends Comparable<? super T>> void shellSort(
+            T[] arr, IntFunction<int[]> gapSequence, PerformanceTracker metrics) {
+
+        metrics.allocations++; // counting gaps array allocation
         int n = arr.length;
         int[] gaps = gapSequence.apply(n);
 
         for (int gap : gaps) {
             for (int i = gap; i < n; i++) {
+                metrics.arrayAccesses++; // read arr[i]
                 T temp = arr[i];
+                metrics.allocations++;   // temp variable
                 int j = i;
-                while (j >= gap && arr[j - gap].compareTo(temp) > 0) {
+
+                while (j >= gap) {
+                    metrics.arrayAccesses += 2; // read arr[j-gap], read temp
+                    metrics.comparisons++;
+                    if (arr[j - gap].compareTo(temp) <= 0) break;
+
+                    metrics.arrayAccesses += 2; // write arr[j], read arr[j-gap]
                     arr[j] = arr[j - gap];
+                    metrics.swaps++;
                     j -= gap;
                 }
+
+                metrics.arrayAccesses++; // write arr[j]
                 arr[j] = temp;
             }
         }
     }
 
-    /** Convenience overload using Shell's original gaps */
-    public static <T extends Comparable<? super T>> void shellSort(T[] arr) {
-        shellSort(arr, ShellSort::shellGaps);
+    /** Default (Shell’s sequence) */
+    public static <T extends Comparable<? super T>> void shellSort(T[] arr, PerformanceTracker metrics) {
+        shellSort(arr, ShellSort::shellGaps, metrics);
     }
 
     // ---------------- GAP SEQUENCES ---------------- //
 
-    /** Shell's original: n/2, n/4, ..., 1 */
     public static int[] shellGaps(int n) {
         ArrayList<Integer> list = new ArrayList<>();
         for (int gap = n / 2; gap > 0; gap /= 2) {
@@ -46,7 +56,6 @@ public final class ShellSort {
         return list.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    /** Knuth’s sequence: 1, 4, 13, 40... (3*h+1). Used in reverse order. */
     public static int[] knuthGaps(int n) {
         ArrayList<Integer> list = new ArrayList<>();
         int h = 1;
@@ -58,7 +67,6 @@ public final class ShellSort {
         return list.stream().mapToInt(Integer::intValue).toArray();
     }
 
-    /** Sedgewick’s sequence (1986 mix of two formulas). */
     public static int[] sedgewickGaps(int n) {
         ArrayList<Integer> list = new ArrayList<>();
         int k = 0;
