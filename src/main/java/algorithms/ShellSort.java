@@ -2,8 +2,7 @@ package algorithms;
 
 import metrics.PerformanceTracker;
 
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.*;
 import java.util.function.IntFunction;
 
 public final class ShellSort {
@@ -11,74 +10,113 @@ public final class ShellSort {
     private ShellSort() {}
 
     public static <T extends Comparable<? super T>> void shellSort(
-            T[] arr, IntFunction<int[]> gapSequence, PerformanceTracker metrics) {
-
-        metrics.allocations++; // counting gaps array allocation
+            T[] arr,
+            IntFunction<int[]> gapFunction,
+            PerformanceTracker metrics
+    ) {
         int n = arr.length;
-        int[] gaps = gapSequence.apply(n);
+        int[] gaps = gapFunction.apply(n);
 
         for (int gap : gaps) {
             for (int i = gap; i < n; i++) {
-                metrics.arrayAccesses++; // read arr[i]
+                // Store once, avoid redundant array lookups
                 T temp = arr[i];
-                metrics.allocations++;   // temp variable
+                metrics.accesses++; // read
+
                 int j = i;
-
+                // compare & shift loop
                 while (j >= gap) {
-                    metrics.arrayAccesses += 2; // read arr[j-gap], read temp
-                    metrics.comparisons++;
-                    if (arr[j - gap].compareTo(temp) <= 0) break;
+                    T prev = arr[j - gap];
+                    metrics.accesses++; // read
 
-                    metrics.arrayAccesses += 2; // write arr[j], read arr[j-gap]
-                    arr[j] = arr[j - gap];
+                    if (metrics.compare(prev, temp) <= 0) {
+                        break; // already in place
+                    }
+
+                    arr[j] = prev; // shift right
+                    metrics.accesses++; // write
                     metrics.swaps++;
                     j -= gap;
                 }
 
-                metrics.arrayAccesses++; // write arr[j]
-                arr[j] = temp;
+                arr[j] = temp; // place stored element
+                metrics.accesses++; // write
             }
         }
     }
 
-    /** Default (Shell’s sequence) */
-    public static <T extends Comparable<? super T>> void shellSort(T[] arr, PerformanceTracker metrics) {
-        shellSort(arr, ShellSort::shellGaps, metrics);
-    }
+    // ---- Gap sequences ----
 
-    // ---------------- GAP SEQUENCES ---------------- //
-
+    // Original Shell gaps: n/2, n/4, ..., 1
     public static int[] shellGaps(int n) {
-        ArrayList<Integer> list = new ArrayList<>();
+        List<Integer> gaps = new ArrayList<>();
         for (int gap = n / 2; gap > 0; gap /= 2) {
-            list.add(gap);
+            gaps.add(gap);
         }
-        return list.stream().mapToInt(Integer::intValue).toArray();
+        return toArray(gaps);
     }
 
+    // Knuth gaps: 1, 4, 13, 40, ...
     public static int[] knuthGaps(int n) {
-        ArrayList<Integer> list = new ArrayList<>();
+        List<Integer> gaps = new ArrayList<>();
         int h = 1;
         while (h < n) {
-            list.add(h);
+            gaps.add(h);
             h = 3 * h + 1;
         }
-        Collections.reverse(list);
-        return list.stream().mapToInt(Integer::intValue).toArray();
+        Collections.reverse(gaps);
+        return toArray(gaps);
     }
 
+    // Sedgewick gaps
     public static int[] sedgewickGaps(int n) {
-        ArrayList<Integer> list = new ArrayList<>();
+        List<Integer> gaps = new ArrayList<>();
         int k = 0;
-        while (true) {
-            int gap1 = (int) (Math.pow(4, k) + 3 * Math.pow(2, k - 1) + 1);
-            int gap2 = (int) (9 * Math.pow(4, k) - 9 * Math.pow(2, k) + 1);
-            if (gap1 > 0 && gap1 < n) list.add(gap1);
-            if (gap2 > 0 && gap2 < n) list.add(gap2);
-            if (gap1 >= n && gap2 >= n) break;
+        int gap;
+        do {
+            if (k % 2 == 0) {
+                gap = 9 * ((1 << (2 * k)) - (1 << k)) + 1;
+            } else {
+                gap = 8 * (1 << (2 * k)) - 6 * (1 << (k + 1)) + 1;
+            }
+            if (gap < n) gaps.add(gap);
             k++;
+        } while (gap < n);
+        Collections.reverse(gaps);
+        return toArray(gaps);
+    }
+
+    // Pratt gaps (all numbers of form 2^p * 3^q < n)
+    public static int[] prattGaps(int n) {
+        Set<Integer> gaps = new HashSet<>();
+        for (int p = 1; p < n; p *= 2) {
+            for (int q = p; q < n; q *= 3) {
+                gaps.add(q);
+            }
         }
-        Collections.sort(list, Collections.reverseOrder());
-        return list.stream().mapToInt(Integer::intValue).toArray();
+        List<Integer> sorted = new ArrayList<>(gaps);
+        Collections.sort(sorted, Collections.reverseOrder());
+        return toArray(sorted);
+    }
+
+    // Tokuda gaps
+    public static int[] tokudaGaps(int n) {
+        List<Integer> gaps = new ArrayList<>();
+        int k = 1;
+        int gap;
+        do {
+            gap = (int) Math.ceil((Math.pow(9, k) - Math.pow(4, k)) / (5.0 * Math.pow(4, k - 1)));
+            if (gap < n) gaps.add(gap);
+            k++;
+        } while (gap < n);
+        Collections.reverse(gaps);
+        return toArray(gaps);
+    }
+
+    // Utility: convert list → int[]
+    private static int[] toArray(List<Integer> list) {
+        int[] arr = new int[list.size()];
+        for (int i = 0; i < list.size(); i++) arr[i] = list.get(i);
+        return arr;
     }
 }

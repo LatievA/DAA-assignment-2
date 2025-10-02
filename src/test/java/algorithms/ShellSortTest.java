@@ -1,71 +1,62 @@
 package algorithms;
 
 import metrics.PerformanceTracker;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.MethodSource;
 
-import org.junit.jupiter.api.Test;
-import java.util.Arrays;
+import java.util.*;
+import java.util.function.IntFunction;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ShellSortTest {
 
-    @Test
-    void testShellGapsSortsCorrectly() {
+    record Algo(String name, IntFunction<int[]> gaps) {}
+
+    static List<Algo> algorithms() {
+        return Arrays.asList(
+                new Algo("Shell", ShellSort::shellGaps),
+                new Algo("Knuth", ShellSort::knuthGaps),
+                new Algo("Sedgewick", ShellSort::sedgewickGaps),
+                new Algo("Pratt", ShellSort::prattGaps),
+                new Algo("Tokuda", ShellSort::tokudaGaps)
+        );
+    }
+
+    @ParameterizedTest
+    @MethodSource("algorithms")
+    void testSortCorrectness(Algo algo) {
         Integer[] arr = {5, 2, 9, 1, 5, 6};
         Integer[] expected = arr.clone();
         Arrays.sort(expected);
 
         PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, ShellSort::shellGaps, metrics);
+        ShellSort.shellSort(arr, algo.gaps(), metrics);
 
-        assertArrayEquals(expected, arr, "Array should be sorted using Shell gaps");
-        assertTrue(metrics.comparisons > 0, "Should have some comparisons");
-        assertTrue(metrics.arrayAccesses > 0, "Should have array accesses");
+        assertArrayEquals(expected, arr, algo.name() + " should sort array correctly");
+        assertTrue(metrics.comparisons > 0, algo.name() + " should make comparisons");
+        assertTrue(metrics.accesses > 0, algo.name() + " should have array accesses");
     }
 
-    @Test
-    void testKnuthGapsSortsCorrectly() {
-        Integer[] arr = {3, 0, -1, 8, 7};
-        Integer[] expected = arr.clone();
-        Arrays.sort(expected);
-
-        PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, ShellSort::knuthGaps, metrics);
-
-        assertArrayEquals(expected, arr, "Array should be sorted using Knuth gaps");
-        assertTrue(metrics.swaps >= 0, "Swaps metric should be recorded");
-    }
-
-    @Test
-    void testSedgewickGapsSortsCorrectly() {
-        Integer[] arr = {10, 7, 3, 8, 2};
-        Integer[] expected = arr.clone();
-        Arrays.sort(expected);
-
-        PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, ShellSort::sedgewickGaps, metrics);
-
-        assertArrayEquals(expected, arr, "Array should be sorted using Sedgewick gaps");
-        assertTrue(metrics.allocations >= arr.length, "Allocations should count array creation");
-    }
-
-    @Test
-    void testEmptyArray() {
+    @ParameterizedTest
+    @MethodSource("algorithms")
+    void testEmptyArray(Algo algo) {
         Integer[] arr = {};
         PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, ShellSort::knuthGaps, metrics);
+        ShellSort.shellSort(arr, algo.gaps(), metrics);
 
         assertEquals(0, arr.length, "Empty array should remain empty");
-        assertTrue(metrics.comparisons == 0, "No comparisons for empty array");
+        assertEquals(0, metrics.comparisons, algo.name() + " should do no comparisons on empty array");
     }
 
-    @Test
-    void testSingleElementArray() {
+    @ParameterizedTest
+    @MethodSource("algorithms")
+    void testSingleElement(Algo algo) {
         Integer[] arr = {42};
         PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, ShellSort::shellGaps, metrics);
+        ShellSort.shellSort(arr, algo.gaps(), metrics);
 
-        assertEquals(42, arr[0], "Single element array should remain unchanged");
-        assertTrue(metrics.comparisons == 0, "No comparisons needed for single element");
+        assertEquals(42, arr[0], "Single element should remain unchanged");
+        assertEquals(0, metrics.comparisons, algo.name() + " should do no comparisons on single element");
     }
 }
