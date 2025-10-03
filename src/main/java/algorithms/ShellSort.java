@@ -3,46 +3,39 @@ package algorithms;
 import metrics.PerformanceTracker;
 
 import java.util.*;
-import java.util.function.IntFunction;
+import java.util.function.Function;
 
 public final class ShellSort {
 
     private ShellSort() {}
 
     public static <T extends Comparable<? super T>> void shellSort(
-            T[] arr,
-            IntFunction<int[]> gapFunction,
-            PerformanceTracker metrics
-    ) {
-        int n = arr.length;
-        int[] gaps = gapFunction.apply(n);
+            T[] arr, Comparator<? super T> cmp,
+            Function<Integer, int[]> gapFunction,
+            PerformanceTracker metrics) {
 
+        metrics.reset();
+        metrics.startTimer();
+
+        int[] gaps = gapFunction.apply(arr.length);
+        metrics.allocate();
         for (int gap : gaps) {
-            for (int i = gap; i < n; i++) {
-                // Store once, avoid redundant array lookups
+            for (int i = gap; i < arr.length; i++) {
                 T temp = arr[i];
-                metrics.accesses++; // read
-
+                metrics.read();
                 int j = i;
-                // compare & shift loop
-                while (j >= gap) {
-                    T prev = arr[j - gap];
-                    metrics.accesses++; // read
-
-                    if (metrics.compare(prev, temp) <= 0) {
-                        break; // already in place
-                    }
-
-                    arr[j] = prev; // shift right
-                    metrics.accesses++; // write
-                    metrics.swaps++;
+                while (j >= gap && cmp.compare(arr[j - gap], temp) > 0) {
+                    metrics.compare();
+                    arr[j] = arr[j - gap];
+                    metrics.write();
                     j -= gap;
                 }
-
-                arr[j] = temp; // place stored element
-                metrics.accesses++; // write
+                arr[j] = temp;
+                metrics.write();
             }
         }
+
+        metrics.stopTimer();
     }
 
     // ---- Gap sequences ----

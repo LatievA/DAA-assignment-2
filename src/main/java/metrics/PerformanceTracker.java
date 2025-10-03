@@ -1,51 +1,55 @@
 package metrics;
 
 public class PerformanceTracker {
-    public long comparisons = 0;
-    public long swaps = 0;
-    public long accesses = 0;   // total reads + writes
-    public long allocations = 0;
+    private long comparisons = 0;
+    private long swaps = 0;
+    private long reads = 0;
+    private long writes = 0;
+    private long allocations = 0;
 
-    // Compare wrapper
-    public <T extends Comparable<? super T>> int compare(T a, T b) {
-        comparisons++;
-        return a.compareTo(b);
-    }
+    private long startTime = 0;
+    private long elapsedTime = 0;
 
-    // Record read
-    public <T> T read(T value) {
-        accesses++;
-        return value;
-    }
-
-    // Record write
-    public <T> T write(T value) {
-        accesses++;
-        return value;
-    }
-
-    // Record allocation
-    public void allocate() {
-        allocations++;
-    }
-
-    // Reset counters
     public void reset() {
-        comparisons = 0;
-        swaps = 0;
-        accesses = 0;
-        allocations = 0;
+        comparisons = swaps = reads = writes = allocations = 0;
+        startTime = elapsedTime = 0;
     }
+
+    // --- Counters ---
+    public void compare() { comparisons++; }
+    public void swap() { swaps++; }
+    public void read() { reads++; }
+    public void write() { writes++; }
+    public void allocate() { allocations++; }
+
+    // --- Timing ---
+    public void startTimer() {
+        startTime = System.nanoTime();
+    }
+
+    public void stopTimer() {
+        if (startTime != 0) {
+            elapsedTime = System.nanoTime() - startTime;
+            startTime = 0;
+        }
+    }
+
+    public long getElapsedTime() { return elapsedTime; }
+    public double getElapsedMillis() { return elapsedTime / 1_000_000.0; }
+
+    // --- Getters ---
+    public long getComparisons() { return comparisons; }
+    public long getSwaps() { return swaps; }
+    public long getReads() { return reads; }
+    public long getWrites() { return writes; }
+    public long getAllocations() { return allocations; }
 
     @Override
     public String toString() {
-        return "comparisons=" + comparisons +
-                ", swaps=" + swaps +
-                ", accesses=" + accesses +
-                ", allocations=" + allocations;
-    }
-
-    public String toCSV() {
-        return comparisons + "," + swaps + "," + accesses + "," + allocations;
+        return String.format(
+                "Comparisons=%d, Swaps=%d, Reads=%d, Writes=%d, Allocations=%d, Time=%.3f ms",
+                comparisons, swaps, reads, writes, allocations, getElapsedMillis()
+        );
     }
 }
+

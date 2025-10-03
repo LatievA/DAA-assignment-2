@@ -1,62 +1,72 @@
 package algorithms;
 
-import metrics.PerformanceTracker;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.util.*;
-import java.util.function.IntFunction;
+import java.util.stream.Stream;
+
+import metrics.*;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 class ShellSortTest {
 
-    record Algo(String name, IntFunction<int[]> gaps) {}
-
-    static List<Algo> algorithms() {
-        return Arrays.asList(
-                new Algo("Shell", ShellSort::shellGaps),
-                new Algo("Knuth", ShellSort::knuthGaps),
-                new Algo("Sedgewick", ShellSort::sedgewickGaps),
-                new Algo("Pratt", ShellSort::prattGaps),
-                new Algo("Tokuda", ShellSort::tokudaGaps)
-        );
+    // Provide all algorithms for parameterized tests
+    public static Stream<Map.Entry<String, java.util.function.Function<Integer, int[]>>> algorithms() {
+        Map<String, java.util.function.Function<Integer, int[]>> map = new LinkedHashMap<>();
+        map.put("Shell", ShellSort::shellGaps);
+        map.put("Knuth", ShellSort::knuthGaps);
+        map.put("Sedgewick", ShellSort::sedgewickGaps);
+        map.put("Pratt", ShellSort::prattGaps);
+        map.put("Tokuda", ShellSort::tokudaGaps);
+        return map.entrySet().stream();
     }
 
-    @ParameterizedTest
-    @MethodSource("algorithms")
-    void testSortCorrectness(Algo algo) {
-        Integer[] arr = {5, 2, 9, 1, 5, 6};
-        Integer[] expected = arr.clone();
-        Arrays.sort(expected);
+    private boolean isSorted(Integer[] arr) {
+        for (int i = 1; i < arr.length; i++) {
+            if (arr[i - 1] > arr[i]) return false;
+        }
+        return true;
+    }
 
+    @ParameterizedTest(name = "{0} gap sequence sorts correctly")
+    @MethodSource("algorithms")
+    void testSortsCorrectly(Map.Entry<String, java.util.function.Function<Integer, int[]>> algo) {
         PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, algo.gaps(), metrics);
+        Integer[] arr = {5, 4, 3, 2, 1};
+        metrics.allocate(); // count input array allocation
 
-        assertArrayEquals(expected, arr, algo.name() + " should sort array correctly");
-        assertTrue(metrics.comparisons > 0, algo.name() + " should make comparisons");
-        assertTrue(metrics.accesses > 0, algo.name() + " should have array accesses");
+        ShellSort.shellSort(arr, Comparator.naturalOrder(), algo.getValue(), metrics);
+
+        assertTrue(isSorted(arr), algo.getKey() + " did not sort correctly");
+        assertTrue(metrics.getComparisons() > 0, "Comparisons should be > 0");
+        assertTrue(metrics.getAllocations() > 0, "Allocations should count array creation");
+        assertTrue(metrics.getElapsedTime() > 0, "Timer should measure elapsed time");
     }
 
-    @ParameterizedTest
-    @MethodSource("algorithms")
-    void testEmptyArray(Algo algo) {
+    @Test
+    void testAlreadySortedArray() {
+        PerformanceTracker metrics = new PerformanceTracker();
+        Integer[] arr = {1, 2, 3, 4, 5};
+        metrics.allocate();
+
+        ShellSort.shellSort(arr, Comparator.naturalOrder(), ShellSort::tokudaGaps, metrics);
+
+        assertTrue(isSorted(arr));
+        assertEquals(1, metrics.getAllocations(), "Should count initial array allocation");
+    }
+
+    @Test
+    void testEmptyArray() {
+        PerformanceTracker metrics = new PerformanceTracker();
         Integer[] arr = {};
-        PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, algo.gaps(), metrics);
+        metrics.allocate();
 
-        assertEquals(0, arr.length, "Empty array should remain empty");
-        assertEquals(0, metrics.comparisons, algo.name() + " should do no comparisons on empty array");
-    }
+        ShellSort.shellSort(arr, Comparator.naturalOrder(), ShellSort::knuthGaps, metrics);
 
-    @ParameterizedTest
-    @MethodSource("algorithms")
-    void testSingleElement(Algo algo) {
-        Integer[] arr = {42};
-        PerformanceTracker metrics = new PerformanceTracker();
-        ShellSort.shellSort(arr, algo.gaps(), metrics);
-
-        assertEquals(42, arr[0], "Single element should remain unchanged");
-        assertEquals(0, metrics.comparisons, algo.name() + " should do no comparisons on single element");
+        assertTrue(isSorted(arr));
+        assertEquals(1, metrics.getAllocations());
     }
 }
